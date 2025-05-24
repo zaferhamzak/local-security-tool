@@ -1,0 +1,13 @@
+flask==2.3.3
+flask-socketio==5.3.6
+python-socketio==5.11.1
+python-engineio==4.9.1
+scapy==2.5.0
+aiohttp==3.9.3
+netifaces==0.11.0
+python-nmap==0.7.1
+requests==2.31.0
+psutil==5.9.8
+flask-login==0.6.3
+flask-sqlalchemy==3.1.1
+werkzeug==2.3.7 

@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Security Scanner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="app-logo">
+                    <i class="ri-shield-check-line"></i>
+                    <span>NetSec</span>
+                </a>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" onclick="showTab('devices-tab'); return false;">
+                    <i class="ri-dashboard-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" onclick="refreshDevices(); showTab('devices-tab'); return false;">
+                    <i class="ri-cpu-line"></i>
+                    <span>Devices</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showTab('security-events-tab'); return false;">
+                    <i class="ri-bug-line"></i>
+                    <span>Security Events</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showTab('traffic-stats-tab'); return false;">
+                    <i class="ri-bar-chart-2-line"></i>
+                    <span>Traffic Stats</span>
+                </a>
+                <a href="/logout" class="nav-item">
+                    <i class="ri-logout-box-line"></i>
+                    <span>Logout</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-section">
+                <h2 class="sidebar-title">Network Status</h2>
+                <div class="stat-card">
+                    <div class="stat-label">Active Devices</div>
+                    <div class="stat-value" id="device-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Security Events</div>
+                    <div class="stat-value" id="security-events-count">0</div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h2 class="sidebar-title">Quick Actions</h2>
+                <button class="btn btn-primary" onclick="startScan()">
+                    <i class="ri-scan-2-line"></i>
+                    Start Scan
+                </button>
+                <button class="btn btn-secondary" onclick="stopScan()">
+                    <i class="ri-stop-circle-line"></i>
+                    Stop Scan
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <h2 class="sidebar-title">Network Info</h2>
+                <div class="stat-card">
+                    <div class="stat-label">Local IP</div>
+                    <div class="stat-value" id="local-ip">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Network Range</div>
+                    <div class="stat-value" id="network-range">-</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Devices Tab -->
+            <div id="devices-tab" class="tab-pane active">
+                <div class="top-bar">
+                    <h1 class="page-title">
+                        <i class="ri-cpu-line"></i>
+                        Detected Devices
+                    </h1>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="startScan()">
+                            <i class="ri-scan-2-line"></i>
+                            Start Scan
+                        </button>
+                        <button class="btn btn-secondary" onclick="stopScan()">
+                            <i class="ri-stop-circle-line"></i>
+                            Stop Scan
+                        </button>
+                    </div>
+                </div>
+                <div class="section-controls">
+                    <div class="control-group">
+                        <label for="device-search">Search IP/MAC/Vendor:</label>
+                        <input type="text" id="device-search" placeholder="e.g., 192.168.1.1">
+                    </div>
+                    <div class="control-group">
+                         <label for="device-filter">Status:</label>
+                         <select id="device-filter">
+                             <option value="all">All</option>
+                             <option value="online">Online</option>
+                             <option value="offline">Offline</option>
+                         </select>
+                    </div>
+                     <button class="btn btn-secondary">
+                         <i class="ri-filter-line"></i> Apply Filter
+                     </button>
+                </div>
+                <div id="devices-grid" class="devices-grid"></div>
+            </div>
+
+            <!-- Security Events Tab -->
+            <div id="security-events-tab" class="tab-pane">
+                <div class="top-bar">
+                    <h1 class="page-title">
+                        <i class="ri-bug-line"></i>
+                        Security Events
+                    </h1>
+                </div>
+                <div class="section-controls">
+                     <div class="control-group">
+                         <label for="event-search">Search Event Type/IP:</label>
+                         <input type="text" id="event-search" placeholder="e.g., Port Scan">
+                     </div>
+                     <div class="control-group">
+                          <label for="event-filter">Severity:</label>
+                          <select id="event-filter">
+                              <option value="all">All</option>
+                              <option value="high">High</option>
+                              <option value="medium">Medium</option>
+                              <option value="low">Low</option>
+                          </select>
+                     </div>
+                      <button class="btn btn-secondary">
+                          <i class="ri-filter-line"></i> Apply Filter
+                      </button>
+                 </div>
+                <div id="security-events" class="events-list"></div>
+            </div>
+
+            <!-- Traffic Stats Tab -->
+            <div id="traffic-stats-tab" class="tab-pane">
+                <div class="top-bar">
+                    <h1 class="page-title">
+                        <i class="ri-bar-chart-2-line"></i>
+                        Traffic Statistics
+                    </h1>
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" onclick="refreshTrafficStats()">
+                            <i class="ri-refresh-line"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+                 <div class="section-controls">
+                      <div class="control-group">
+                          <label for="traffic-search">Search IP:</label>
+                          <input type="text" id="traffic-search" placeholder="e.g., 192.168.1.100">
+                      </div>
+                       <button class="btn btn-secondary">
+                           <i class="ri-search-line"></i> Search
+                       </button>
+                  </div>
+                <div id="traffic-stats" class="traffic-stats"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Device Details Modal -->
+    <div id="device-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Device Details</h3>
+                <button class="btn btn-secondary" onclick="closeDeviceModal()">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="device-modal-content"></div>
+        </div>
+    </div>
+
+    <!-- CVE Results Modal -->
+    <div id="cve-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">CVE Scan Results</h3>
+                <button class="btn btn-secondary" onclick="closeCVEModal()">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="cve-modal-content"></div>
+        </div>
+    </div>
+
+    <!-- Terminal -->
+    <div id="terminal" class="terminal">
+        <div class="terminal-header">
+            <div class="terminal-title">
+                <i class="ri-terminal-box-line"></i>
+                Terminal Output
+            </div>
+            <button class="btn btn-secondary" onclick="closeTerminal()">
+                <i class="ri-close-line"></i>
+            </button>
+        </div>
+        <div class="terminal-body" id="terminal-content"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        // Socket.io bağlantısı
+        const socket = io();
+
+        // DOM elementleri
+        const devicesGrid = document.getElementById('devices-grid');
+        const securityEvents = document.getElementById('security-events');
+        const trafficStats = document.getElementById('traffic-stats');
+        const deviceCount = document.getElementById('device-count');
+        const securityEventsCount = document.getElementById('security-events-count');
+        const localIp = document.getElementById('local-ip');
+        const networkRange = document.getElementById('network-range');
+
+        // Event listeners
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            socket.emit('get_network_info');
+            showTab('devices-tab');
+        });
+
+        socket.on('network_info', (data) => {
+            localIp.textContent = data.local_ip || '-';
+            networkRange.textContent = data.network_range || '-';
+        });
+
+        socket.on('device_found', (device) => {
+            addOrUpdateDevice(device);
+            updateDeviceCount();
+        });
+
+        socket.on('device_update', (device) => {
+            updateDeviceDetails(device);
+        });
+
+        socket.on('clear_devices', () => {
+            devicesGrid.innerHTML = '';
+            updateDeviceCount();
+        });
+
+        socket.on('security_event', (event) => {
+            addSecurityEvent(event);
+            updateSecurityEventsCount();
+        });
+
+        socket.on('traffic_stats', (stats) => {
+            updateTrafficStats(stats);
+        });
+
+        socket.on('cve_scan_results', (data) => {
+            showCVEModal(data.vulnerabilities);
+        });
+
+        // Tab işlemleri
+        function showTab(tabId) {
+            // Tüm tab içeriklerini gizle
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            
+            // Tüm nav itemları pasif yap
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Seçilen tabı ve nav itemı aktif yap
+            document.getElementById(tabId).classList.add('active');
+            const activeNavItem = document.querySelector(`.nav-item[onclick*="${tabId}"]`);
+            if (activeNavItem) {
+                activeNavItem.classList.add('active');
+            }
+        }
+
+        // Device işlemleri
+        function addOrUpdateDevice(device) {
+            const existingDevice = document.querySelector(`[data-ip="${device.ip}"]`);
+            if (existingDevice) {
+                updateDeviceDetails(device);
+            } else {
+                const deviceElement = createDeviceElement(device);
+                devicesGrid.appendChild(deviceElement);
+            }
+        }
+
+        function createDeviceElement(device) {
+            const div = document.createElement('div');
+            div.className = 'device-card';
+            div.setAttribute('data-ip', device.ip);
+            
+            div.innerHTML = `
+                <div class="device-header">
+                    <div class="device-info">
+                        <div class="device-ip">${device.ip}</div>
+                        <div class="device-vendor">${device.vendor}</div>
+                    </div>
+                    <div class="device-status">
+                        <span class="status-badge online"></span>
+                        <span class="status-text">Online</span>
+                    </div>
+                </div>
+                <div class="device-details">
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">MAC Address</div>
+                            <div class="detail-value">${device.mac}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Hostname</div>
+                            <div class="detail-value">${device.hostname}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">OS</div>
+                            <div class="detail-value">${device.os_info.os_name}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Open Ports</div>
+                            <div class="detail-value">${device.open_ports.join(', ') || 'None'}</div>
+                        </div>
+                    </div>
+                    <div class="device-actions">
+                        <button class="btn btn-primary" onclick="scanDevice('${device.ip}')">
+                            <i class="ri-scan-2-line"></i>
+                            Scan Device
+                        </button>
+                        <button class="btn btn-secondary" onclick="scanCVE('${device.ip}')">
+                            <i class="ri-shield-check-line"></i>
+                            CVE Scan
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            return div;
+        }
+
+        function updateDeviceDetails(device) {
+            const deviceElement = document.querySelector(`[data-ip="${device.ip}"]`);
+            if (deviceElement) {
+                const details = deviceElement.querySelector('.device-details');
+                if (details) {
+                    details.innerHTML = `
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">MAC Address</div>
+                                <div class="detail-value">${device.mac}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Hostname</div>
+                                <div class="detail-value">${device.hostname}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">OS</div>
+                                <div class="detail-value">${device.os_info.os_name}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Open Ports</div>
+                                <div class="detail-value">${device.open_ports.join(', ') || 'None'}</div>
+                            </div>
+                        </div>
+                        <div class="device-actions">
+                            <button class="btn btn-primary" onclick="scanDevice('${device.ip}')">
+                                <i class="ri-scan-2-line"></i>
+                                Scan Device
+                            </button>
+                            <button class="btn btn-secondary" onclick="scanCVE('${device.ip}')">
+                                <i class="ri-shield-check-line"></i>
+                                CVE Scan
+                            </button>
+                        </div>
+                    `;
+                } else {
+                     console.error('Device details element not found for', device.ip);
+                }
+            }
+        }
+
+        // Security Events işlemleri
+        function addSecurityEvent(event) {
+            const eventElement = document.createElement('div');
+            eventElement.className = `event-card ${event.severity}`;
+            
+            eventElement.innerHTML = `
+                <div class="event-header">
+                    <div class="event-type">${event.event_type}</div>
+                    <div class="event-severity ${event.severity}">${event.severity}</div>
+                </div>
+                <div class="event-details">
+                    <div>Source IP: ${event.source_ip}</div>
+                    <div>Destination IP: ${event.destination_ip}</div>
+                    <pre>${JSON.stringify(event.details, null, 2)}</pre>
+                </div>
+            `;
+            
+            securityEvents.insertBefore(eventElement, securityEvents.firstChild);
+        }
+
+        // Traffic Stats işlemleri
+        function updateTrafficStats(stats) {
+            const table = document.createElement('table');
+            table.className = 'traffic-table';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Bytes</th>
+                        <th>Packets</th>
+                        <th>Last Seen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Object.entries(stats).map(([ip, data]) => `
+                        <tr>
+                            <td>${ip}</td>
+                            <td>${formatBytes(data.bytes)}</td>
+                            <td>${data.packets}</td>
+                            <td>${new Date(data.last_seen).toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            
+            trafficStats.innerHTML = '';
+            trafficStats.appendChild(table);
+        }
+
+        // Yardımcı fonksiyonlar
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function updateDeviceCount() {
+            const count = document.querySelectorAll('.device-card:not(.hidden)').length;
+            deviceCount.textContent = count;
+        }
+
+        function updateSecurityEventsCount() {
+            const count = document.querySelectorAll('.event-card:not(.hidden)').length;
+            securityEventsCount.textContent = count;
+        }
+
+        // Modal işlemleri
+        function showDeviceModal(device) {
+            const modal = document.getElementById('device-modal');
+            const content = document.getElementById('device-modal-content');
+            
+            content.innerHTML = `
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">IP Address</div>
+                        <div class="detail-value">${device.ip}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">MAC Address</div>
+                        <div class="detail-value">${device.mac}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Vendor</div>
+                        <div class="detail-value">${device.vendor}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Hostname</div>
+                        <div class="detail-value">${device.hostname}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">OS</div>
+                        <div class="detail-value">${device.os_info.os_name}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Open Ports</div>
+                        <div class="detail-value">${device.open_ports.join(', ') || 'None'}</div>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        function closeDeviceModal() {
+            document.getElementById('device-modal').classList.remove('active');
+        }
+
+        function showCVEModal(vulnerabilities) {
+            const modal = document.getElementById('cve-modal');
+            const content = document.getElementById('cve-modal-content');
+            
+            const summary = {
+                high: vulnerabilities.filter(v => v.severity === 'high').length,
+                medium: vulnerabilities.filter(v => v.severity === 'medium').length,
+                low: vulnerabilities.filter(v => v.severity === 'low').length,
+                exploit: vulnerabilities.filter(v => v.exploit_available).length
+            };
+            
+            content.innerHTML = `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Vulnerability Summary</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">High Severity</div>
+                                <div class="detail-value text-danger">${summary.high}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Medium Severity</div>
+                                <div class="detail-value text-warning">${summary.medium}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Low Severity</div>
+                                <div class="detail-value text-info">${summary.low}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Exploits Available</div>
+                                <div class="detail-value text-danger">${summary.exploit}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="events-list">
+                    ${vulnerabilities.map(vuln => `
+                        <div class="event-card ${vuln.severity}">
+                            <div class="event-header">
+                                <div class="event-type">
+                                    <h4>${vuln.cve_id}</h4>
+                                    ${vuln.exploit_available ? '<span class="event-severity high">Exploit Available</span>' : ''}
+                                </div>
+                                <div class="event-severity ${vuln.severity}">${vuln.severity}</div>
+                            </div>
+                            <div class="event-details">
+                                <p>${vuln.description}</p>
+                                <div class="detail-grid">
+                                    <div class="detail-item">
+                                        <div class="detail-label">CVSS Score</div>
+                                        <div class="detail-value">${vuln.cvss_score}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Risk Score</div>
+                                        <div class="detail-value">${vuln.risk_score.toFixed(1)}</div>
+                                    </div>
+                                </div>
+                                ${vuln.exploit_urls.length > 0 ? `
+                                    <div class="detail-section">
+                                        <h4>Available Exploits</h4>
+                                        <div class="events-list">
+                                            ${vuln.exploit_urls.map(url => `
+                                                <a href="${url}" target="_blank" class="event-card low">
+                                                    <div class="event-header">
+                                                        <div class="event-type">Exploit</div>
+                                                    </div>
+                                                    <div class="event-details">${url}</div>
+                                                </a>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                <div class="detail-section">
+                                    <h4>Remediation Steps</h4>
+                                    <ol class="event-details">
+                                        ${vuln.remediation_steps.map(step => `
+                                            <li>${step}</li>
+                                        `).join('')}
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        function closeCVEModal() {
+            document.getElementById('cve-modal').classList.remove('active');
+        }
+
+        // Terminal işlemleri
+        function showTerminal() {
+            document.getElementById('terminal').classList.add('active');
+        }
+
+        function closeTerminal() {
+            document.getElementById('terminal').classList.remove('active');
+        }
+
+        function addTerminalLine(line, type = 'info') {
+            const terminal = document.getElementById('terminal-content');
+            const lineElement = document.createElement('div');
+            lineElement.className = `terminal-line ${type}`;
+            lineElement.textContent = line;
+            terminal.appendChild(lineElement);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // Socket.io event handlers
+        socket.on('scan_status', (data) => {
+            addTerminalLine(data.message, data.type);
+            if (data.type === 'info' && data.message.includes('Starting')) {
+                showTerminal();
+            }
+        });
+
+        // Action handlers
+        function startScan() {
+            socket.emit('start_scan');
+            showTerminal();
+        }
+
+        function stopScan() {
+            socket.emit('stop_scan');
+        }
+
+        function scanDevice(ip) {
+            socket.emit('scan_device', { ip });
+        }
+
+        function scanCVE(ip) {
+            socket.emit('scan_cve', { ip });
+        }
+
+        function refreshDevices() {
+            socket.emit('start_scan');
+        }
+
+        function refreshTrafficStats() {
+            socket.emit('get_traffic_stats');
+        }
+
+        // Filter and Search functions
+
+        // Global data storage (to keep track of the full lists)
+        let allDevices = [];
+        let allSecurityEvents = [];
+        let allTrafficStats = {};
+
+        // Update functions to store data and apply filters
+        socket.on('device_found', (device) => {
+            const existingIndex = allDevices.findIndex(d => d.ip === device.ip);
+            if (existingIndex > -1) {
+                allDevices[existingIndex] = device;
+            } else {
+                allDevices.push(device);
+            }
+            filterDevices(); // Filter and display after data update
+            updateDeviceCount();
+        });
+
+        socket.on('device_update', (device) => {
+             const existingIndex = allDevices.findIndex(d => d.ip === device.ip);
+             if (existingIndex > -1) {
+                 allDevices[existingIndex] = device;
+                 updateDeviceDetails(device); // Update details in place if modal is open or needed
+             }
+             filterDevices(); // Re-filter to ensure display is correct
+             updateDeviceCount();
+        });
+
+
+        socket.on('clear_devices', () => {
+            allDevices = [];
+            devicesGrid.innerHTML = '';
+            updateDeviceCount();
+        });
+
+        socket.on('security_event', (event) => {
+            allSecurityEvents.unshift(event); // Add new event to the beginning
+            filterSecurityEvents(); // Filter and display
+            updateSecurityEventsCount();
+        });
+
+        socket.on('traffic_stats', (stats) => {
+            allTrafficStats = stats;
+            filterTrafficStats(); // Filter and display
+        });
+
+
+        // Filtering Logic
+
+        function filterDevices() {
+            const searchTerm = document.getElementById('device-search').value.toLowerCase();
+            const statusFilter = document.getElementById('device-filter').value;
+
+            devicesGrid.innerHTML = ''; // Clear current view
+
+            allDevices.forEach(device => {
+                const matchesSearch = searchTerm === '' ||
+                                    device.ip.toLowerCase().includes(searchTerm) ||
+                                    (device.mac && device.mac.toLowerCase().includes(searchTerm)) ||
+                                    (device.vendor && device.vendor.toLowerCase().includes(searchTerm));
+
+                const matchesStatus = statusFilter === 'all' ||
+                                     (statusFilter === 'online' && device.status === 'online') || // Assuming device object has a status property
+                                     (statusFilter === 'offline' && device.status === 'offline');
+
+                if (matchesSearch && matchesStatus) {
+                    const deviceElement = createDeviceElement(device);
+                    devicesGrid.appendChild(deviceElement);
+                }
+            });
+            updateDeviceCount();
+        }
+
+        function filterSecurityEvents() {
+            const searchTerm = document.getElementById('event-search').value.toLowerCase();
+            const severityFilter = document.getElementById('event-filter').value;
+
+            securityEvents.innerHTML = ''; // Clear current view
+
+            allSecurityEvents.forEach(event => {
+                const matchesSearch = searchTerm === '' ||
+                                    event.event_type.toLowerCase().includes(searchTerm) ||
+                                    (event.source_ip && event.source_ip.toLowerCase().includes(searchTerm)) ||
+                                    (event.destination_ip && event.destination_ip.toLowerCase().includes(searchTerm)) ||
+                                    (event.details && JSON.stringify(event.details).toLowerCase().includes(searchTerm));
+
+                const matchesSeverity = severityFilter === 'all' || event.severity === severityFilter;
+
+                if (matchesSearch && matchesSeverity) {
+                     const eventElement = document.createElement('div');
+                     eventElement.className = `event-card ${event.severity}`;
+
+                     eventElement.innerHTML = `
+                         <div class="event-header">
+                             <div class="event-type">${event.event_type}</div>
+                             <div class="event-severity ${event.severity}">${event.severity}</div>
+                         </div>
+                         <div class="event-details">
+                             <div>Source IP: ${event.source_ip}</div>
+                             <div>Destination IP: ${event.destination_ip}</div>
+                             <pre>${JSON.stringify(event.details, null, 2)}</pre>
+                         </div>
+                     `;
+                    securityEvents.appendChild(eventElement);
+                }
+            });
+            updateSecurityEventsCount();
+        }
+
+        function filterTrafficStats() {
+             const searchTerm = document.getElementById('traffic-search').value.toLowerCase();
+
+             const table = document.createElement('table');
+             table.className = 'traffic-table';
+             table.innerHTML = `
+                 <thead>
+                     <tr>
+                         <th>IP Address</th>
+                         <th>Bytes</th>
+                         <th>Packets</th>
+                         <th>Last Seen</th>
+                     </tr>
+                 </thead>
+                 <tbody>
+                     ${Object.entries(allTrafficStats)
+                         .filter(([ip, data]) => searchTerm === '' || ip.toLowerCase().includes(searchTerm))
+                         .map(([ip, data]) => `
+                         <tr>
+                             <td>${ip}</td>
+                             <td>${formatBytes(data.bytes)}</td>
+                             <td>${data.packets}</td>
+                             <td>${new Date(data.last_seen).toLocaleString()}</td>
+                         </tr>
+                     `).join('')}
+                 </tbody>
+             `;
+
+             trafficStats.innerHTML = ''; // Clear current view
+             trafficStats.appendChild(table);
+        }
+
+        // Event Listeners for controls
+        document.addEventListener('DOMContentLoaded', () => {
+            socket.emit('get_network_info');
+            socket.emit('get_traffic_stats');
+            showTab('devices-tab');
+
+            // Add event listeners for filtering and searching
+            document.getElementById('device-search').addEventListener('input', filterDevices);
+            document.getElementById('device-filter').addEventListener('change', filterDevices);
+
+            document.getElementById('event-search').addEventListener('input', filterSecurityEvents);
+            document.getElementById('event-filter').addEventListener('change', filterSecurityEvents);
+
+            document.getElementById('traffic-search').addEventListener('input', filterTrafficStats);
+
+             // Initial data load (assuming these events are emitted on connect or initial scan)
+             // socket.emit('get_devices'); // If there's an event to get initial devices
+             // socket.emit('get_security_events'); // If there's an event to get initial events
+        });
+
+        // Modal dışına tıklanınca kapat
+        window.addEventListener('click', (event) => {
+            const deviceModal = document.getElementById('device-modal');
+            const cveModal = document.getElementById('cve-modal');
+            
+            if (event.target === deviceModal) {
+                closeDeviceModal();
+            }
+            if (event.target === cveModal) {
+                closeCVEModal();
+            }
+        });
+
+        // ESC tuşu ile kapatma
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeDeviceModal();
+                closeCVEModal();
+            }
+        });
+    </script>
+</body>
+</html> 
